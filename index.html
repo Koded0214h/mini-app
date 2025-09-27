@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneUp Auth Gateway</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/aptos@1.8.12/dist/aptos.umd.js"></script>
     <style>
@@ -77,7 +77,7 @@
             gap: 10px;
         }
         
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(21, 116, 56, 0.3);
         }
@@ -131,7 +131,7 @@
         }
         
         .hidden {
-            display: none;
+            display: none !important;
         }
         
         .step-indicator {
@@ -158,35 +158,87 @@
             background: #28a745;
         }
         
+        /* The main container for the PIN field */
         .pin-input {
             display: flex;
             justify-content: center;
             gap: 10px;
             margin: 20px 0;
+            position: relative; 
+            height: 50px;
+        }
+
+        /* The hidden, primary input field */
+        #mainPinInput {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: default;
+            font-size: 0;
         }
         
+        /* The visual digit boxes */
         .pin-digit {
             width: 50px;
             height: 50px;
             border: 2px solid #ddd;
             border-radius: 10px;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 20px;
             font-weight: bold;
             transition: all 0.3s;
             background: white;
+            pointer-events: none; 
         }
-        
-        .pin-digit:focus {
+
+        /* Highlight the digit corresponding to the caret position */
+        .pin-input.active-focus .pin-digit:not(.filled) {
             border-color: #157438;
-            outline: none;
-            transform: scale(1.05);
             box-shadow: 0 0 5px rgba(21, 116, 56, 0.3);
         }
-        
+
+        /* ONLY highlight the NEXT available box */
+        .pin-input.active-focus .pin-digit:nth-child(1) { /* Default focus for first empty box */
+             border-color: #157438;
+             box-shadow: 0 0 5px rgba(21, 116, 56, 0.3);
+        }
+        .pin-input.active-focus .pin-digit.filled { /* Clear highlight from filled boxes */
+             border-color: #157438; 
+             box-shadow: none;
+        }
+        .pin-input.active-focus .pin-digit.filled + .pin-digit:not(.filled) { /* Highlight the first unfilled box */
+             border-color: #157438;
+             box-shadow: 0 0 5px rgba(21, 116, 56, 0.3);
+        }
+        .pin-input.active-focus .pin-digit:nth-child(4).filled { /* When all are filled, remove highlight */
+            border-color: #157438;
+            box-shadow: none;
+        }
+
+
         .pin-digit.filled {
             border-color: #157438;
             background: #f0fff4;
+        }
+
+        /* Hide the character and show a dot */
+        .pin-digit-char {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #333;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+
+        .pin-digit.filled .pin-digit-char {
+            opacity: 1;
         }
         
         .lock {
@@ -206,22 +258,28 @@
             <div class="step" id="step3"></div>
         </div>
         
-        <!-- Step 1: PIN Setup -->
         <div id="pinSection" class="section">
             <h2>Step 1: Set Security PIN</h2>
             <div class="status info">
                 Create a 4-digit PIN to secure your wallet access
             </div>
-            <div class="pin-input">
-                <input type="text" maxlength="1" class="pin-digit" data-index="0">
-                <input type="text" maxlength="1" class="pin-digit" data-index="1">
-                <input type="text" maxlength="1" class="pin-digit" data-index="2">
-                <input type="text" maxlength="1" class="pin-digit" data-index="3">
+            <div class="pin-input" id="pinInputContainer">
+                <input type="number" 
+                       id="mainPinInput" 
+                       maxlength="4" 
+                       inputmode="numeric" 
+                       pattern="[0-9]*" 
+                       autocomplete="off" 
+                       oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"
+                >
+                <div class="pin-digit" data-index="0"><span class="pin-digit-char"></span></div>
+                <div class="pin-digit" data-index="1"><span class="pin-digit-char"></span></div>
+                <div class="pin-digit" data-index="2"><span class="pin-digit-char"></span></div>
+                <div class="pin-digit" data-index="3"><span class="pin-digit-char"></span></div>
             </div>
             <button id="setPinBtn" class="btn" disabled>Set PIN & Continue</button>
         </div>
         
-        <!-- Step 2: Wallet Creation -->
         <div id="walletSection" class="section hidden">
             <h2>Step 2: Create Aptos Wallet</h2>
             <div class="status info">
@@ -233,7 +291,6 @@
             <div id="walletStatus" class="status hidden"></div>
         </div>
         
-        <!-- Step 3: Success -->
         <div id="successSection" class="section hidden">
             <h2>✅ Setup Complete!</h2>
             <div class="status success">
@@ -251,7 +308,6 @@
             <button id="finishBtn" class="btn btn-success">🎉 Finish Setup</button>
         </div>
         
-        <!-- Error State -->
         <div id="errorSection" class="section hidden">
             <div class="status error">
                 <strong>Error</strong><br>
@@ -271,7 +327,9 @@
         const aptos = new Aptos();
         
         // DOM elements
-        const pinDigits = document.querySelectorAll('.pin-digit');
+        const mainPinInput = document.getElementById('mainPinInput');
+        const pinDigitElements = document.querySelectorAll('.pin-digit');
+        const pinInputContainer = document.getElementById('pinInputContainer');
         const setPinBtn = document.getElementById('setPinBtn');
         const createWalletBtn = document.getElementById('createWalletBtn');
         const finishBtn = document.getElementById('finishBtn');
@@ -293,45 +351,59 @@
         let userPin = '';
         let walletData = null;
         
-        // PIN input handling - SIMPLE VERSION (like your original)
-        pinDigits.forEach((digit, index) => {
-            digit.addEventListener('input', (e) => {
-                const value = e.target.value;
-                
-                // If user types a character, move to next field
-                if (value && index < 3) {
-                    pinDigits[index + 1].focus();
-                }
-                
-                // Update PIN array
-                const pinArray = Array.from(pinDigits).map(d => d.value);
-                userPin = pinArray.join('');
-                
-                // Update visual state
-                pinDigits.forEach((d, i) => {
-                    if (d.value) {
-                        d.classList.add('filled');
-                    } else {
-                        d.classList.remove('filled');
-                    }
-                });
-                
-                // Enable/disable button
-                setPinBtn.disabled = userPin.length !== 4;
-            });
+        /**
+         * Robust PIN Input Logic: Uses a single, hidden input to capture continuous typing.
+         */
+        mainPinInput.addEventListener('input', (e) => {
+            let pinValue = e.target.value;
             
-            digit.addEventListener('keydown', (e) => {
-                // Handle backspace - move to previous field if current is empty
-                if (e.key === 'Backspace' && !digit.value && index > 0) {
-                    pinDigits[index - 1].focus();
+            // Sanitize: ensure only numbers are kept and limit to 4 characters (for mobile/paste)
+            pinValue = pinValue.replace(/\D/g, '').slice(0, 4);
+            e.target.value = pinValue;
+            userPin = pinValue;
+
+            const pinLength = pinValue.length;
+
+            // Update visual state (filled dots)
+            pinDigitElements.forEach((digitEl, index) => {
+                if (index < pinLength) {
+                    digitEl.classList.add('filled');
+                } else {
+                    digitEl.classList.remove('filled');
                 }
             });
+
+            // Enable/disable button
+            setPinBtn.disabled = pinLength !== 4;
+
+            // Automatically proceed when PIN is complete
+            if (pinLength === 4) {
+                pinInputContainer.classList.remove('active-focus');
+                e.target.blur(); 
+                setPinBtn.click();
+            }
         });
+        
+        // Focus Handlers for visual feedback
+        mainPinInput.addEventListener('focus', () => {
+            pinInputContainer.classList.add('active-focus');
+        });
+
+        mainPinInput.addEventListener('blur', () => {
+            pinInputContainer.classList.remove('active-focus');
+        });
+
+        // Click the container to focus the hidden input (Better mobile UX)
+        pinInputContainer.addEventListener('click', () => {
+            mainPinInput.focus();
+        });
+
+
         
         // Step 1: Set PIN
         setPinBtn.addEventListener('click', () => {
             if (userPin.length === 4) {
-                // Send PIN to bot
+                // Send PIN (for bot communication purposes)
                 tg.sendData(JSON.stringify({
                     type: 'pin_set',
                     pin: userPin,
@@ -347,6 +419,8 @@
         // Step 2: Create Wallet
         createWalletBtn.addEventListener('click', async () => {
             try {
+                if(createWalletBtn.disabled) return;
+
                 createWalletBtn.innerHTML = '🔄 Creating Wallet...';
                 createWalletBtn.disabled = true;
                 walletStatus.textContent = 'Generating secure Aptos wallet...';
@@ -358,7 +432,7 @@
                 walletData = {
                     address: wallet.address,
                     publicKey: wallet.publicKey,
-                    privateKey: wallet.privateKey,
+                    privateKey: wallet.privateKey, 
                     mnemonic: wallet.mnemonic
                 };
                 
@@ -376,10 +450,8 @@
                 createWalletBtn.innerHTML = '✅ Wallet Created';
                 createWalletBtn.classList.add('btn-success');
                 
-                // Enable finish button
                 finishBtn.disabled = false;
                 
-                // Move to success section after a delay
                 setTimeout(() => {
                     showSection(successSection);
                     updateSteps(3);
@@ -388,13 +460,15 @@
             } catch (error) {
                 console.error('Wallet creation error:', error);
                 showError('Failed to create wallet: ' + error.message);
+                createWalletBtn.innerHTML = '🔄 Create Aptos Wallet';
+                createWalletBtn.disabled = false;
             }
         });
         
         // Step 3: Finish Setup
         finishBtn.addEventListener('click', () => {
             if (walletData) {
-                // Send wallet data to bot
+                // Send essential, non-secret data to bot
                 tg.sendData(JSON.stringify({
                     type: 'wallet_created',
                     walletAddress: walletData.address,
@@ -402,7 +476,6 @@
                     timestamp: Date.now()
                 }));
                 
-                // Show final success and close
                 setTimeout(() => {
                     tg.close();
                 }, 500);
@@ -414,6 +487,7 @@
             showSection(pinSection);
             updateSteps(1);
             resetForm();
+            setTimeout(() => mainPinInput.focus(), 100); 
         });
         
         // Helper functions
@@ -441,24 +515,32 @@
         }
         
         function resetForm() {
-            pinDigits.forEach(d => {
-                d.value = '';
-                d.classList.remove('filled');
-            });
+            mainPinInput.value = '';
+            pinDigitElements.forEach(d => d.classList.remove('filled'));
+
             userPin = '';
             setPinBtn.disabled = true;
             walletData = null;
+
             createWalletBtn.innerHTML = '🔄 Create Aptos Wallet';
             createWalletBtn.disabled = false;
             createWalletBtn.classList.remove('btn-success');
             walletInfo.classList.add('hidden');
             walletStatus.classList.add('hidden');
+
             finishBtn.disabled = true;
         }
         
-        // Initialize - focus first PIN input
+        // Initialize
         updateSteps(1);
-        setTimeout(() => pinDigits[0].focus(), 500);
+
+        // FIX: Use tg.ready() to ensure focus works on Telegram Mini Apps
+        tg.ready(() => {
+            // Give the UI a moment to render after the app is ready
+            setTimeout(() => {
+                mainPinInput.focus();
+            }, 100); 
+        });
         
         // Handle theme changes
         tg.onEvent('themeChanged', () => {
