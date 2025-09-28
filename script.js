@@ -26,88 +26,28 @@ const stepLines = document.querySelectorAll('.step-line');
 
 let pinCode = '';
 let walletData = null;
-let aptosLoaded = false;
 console.log("DOM elements and global variables defined.");
 
-// Wait for Aptos SDK to load (correct version from unpkg)
-function waitForAptos() {
-    return new Promise((resolve, reject) => {
-        if (window.aptosSDK) {
-            console.log("Aptos SDK is already loaded");
-            resolve(window.aptosSDK);
-            return;
-        }
-
-        let attempts = 0;
-        const maxAttempts = 50; // 5 seconds max wait
-        
-        const checkAptos = setInterval(() => {
-            attempts++;
-            if (window.aptosSDK) {
-                clearInterval(checkAptos);
-                console.log("Aptos SDK loaded after " + (attempts * 100) + "ms");
-                resolve(window.aptosSDK);
-            } else if (attempts >= maxAttempts) {
-                clearInterval(checkAptos);
-                reject(new Error("Aptos SDK failed to load within 5 seconds"));
-            }
-        }, 100);
-    });
+// Demo wallet generator function
+function generateDemoWallet() {
+    const randomAddress = '0x' + Array.from({length: 64}, () => 
+        Math.floor(Math.random() * 16).toString(16)).join('');
+    return {
+        address: randomAddress,
+        publicKey: '0x' + Array.from({length: 64}, () => 
+            Math.floor(Math.random() * 16).toString(16)).join('')
+    };
 }
 
-// Initialize Aptos when ready
-waitForAptos().then((aptosSDK) => {
-    console.log("Aptos SDK ready to use", aptosSDK);
-    aptosLoaded = true;
+// Initialize wallet functionality immediately (demo mode)
+function initializeWallet() {
+    console.log("💰 Initializing demo wallet mode");
     generateWalletBtn.disabled = false;
     connectWalletBtn.disabled = false;
-    walletStatus.textContent = '✅ Aptos SDK loaded successfully';
-    walletStatus.className = 'status success';
+    walletStatus.textContent = '✅ Demo mode ready - Create or connect wallet';
+    walletStatus.className = 'status info';
     walletStatus.classList.remove('hidden');
-}).catch((error) => {
-    console.error("Failed to load Aptos SDK:", error);
-    walletStatus.textContent = '❌ Aptos SDK not available - using demo mode';
-    walletStatus.className = 'status error';
-    walletStatus.classList.remove('hidden');
-    
-    // Fallback to demo mode
-    window.aptosSDK = {
-        AptosClient: class MockClient {
-            constructor() { console.log("Mock AptosClient created"); }
-        },
-        AptosAccount: class MockAccount {
-            constructor() { 
-                this.address = function() {
-                    return '0x' + Array.from({length: 64}, () => 
-                        Math.floor(Math.random() * 16).toString(16)).join('');
-                };
-                this.pubKey = function() {
-                    return function() {
-                        return { toBytes: () => new Uint8Array(32) };
-                    };
-                };
-            }
-        },
-        CoinClient: class MockCoinClient {
-            constructor() { console.log("Mock CoinClient created"); }
-        },
-        HexString: {
-            fromUint8Array: (arr) => '0x' + Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')
-        },
-        generateWallet: () => {
-            const randomAddress = '0x' + Array.from({length: 64}, () => 
-                Math.floor(Math.random() * 16).toString(16)).join('');
-            return {
-                address: randomAddress,
-                publicKey: '0x' + Array.from({length: 64}, () => 
-                    Math.floor(Math.random() * 16).toString(16)).join('')
-            };
-        }
-    };
-    aptosLoaded = true;
-    generateWalletBtn.disabled = false;
-    connectWalletBtn.disabled = false;
-});
+}
 
 // ------------------------------------
 // --- PIN INPUT LOGIC (STEP 1) ---
@@ -195,6 +135,9 @@ verifyBtn.addEventListener('click', () => {
         updateProgress(1);
         pinSection.classList.add('hidden');
         walletSection.classList.remove('hidden');
+        
+        // Initialize wallet functionality when moving to wallet section
+        initializeWallet();
     } else {
         console.error(`[Verify Click] PIN code length is incorrect: ${pinCode.length}`);
     }
@@ -254,28 +197,21 @@ function showSuccess() {
 }
 
 // ------------------------------------
-// --- WALLET AND SECURITY LOGIC ---
+// --- WALLET AND SECURITY LOGIC (DEMO MODE) ---
 // ------------------------------------
 
 generateWalletBtn.addEventListener('click', async () => {
     console.log("[Wallet] Generate button clicked.");
     
-    if (!aptosLoaded) {
-        walletStatus.textContent = '❌ Aptos SDK not ready yet';
-        walletStatus.className = 'status error';
-        walletStatus.classList.remove('hidden');
-        return;
-    }
-
     try {
         generateWalletBtn.disabled = true;
         connectWalletBtn.disabled = true;
-        walletStatus.textContent = '🔄 Generating Aptos wallet...';
+        walletStatus.textContent = '🔄 Generating demo Aptos wallet...';
         walletStatus.className = 'status info';
         walletStatus.classList.remove('hidden');
         
-        // Use the correct SDK function
-        const wallet = window.aptosSDK.generateWallet();
+        // Use demo wallet generator
+        const wallet = generateDemoWallet();
         walletData = { address: wallet.address, publicKey: wallet.publicKey };
 
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -286,9 +222,9 @@ generateWalletBtn.addEventListener('click', async () => {
             publicKey: walletData.publicKey, 
             timestamp: Date.now() 
         }));
-        console.log(`[Wallet] Wallet generated and data sent. Address: ${walletData.address}`);
+        console.log(`[Wallet] Demo wallet generated and data sent. Address: ${walletData.address}`);
 
-        walletStatus.textContent = '✅ Aptos wallet created successfully!';
+        walletStatus.textContent = '✅ Demo Aptos wallet created successfully!';
         walletStatus.className = 'status success';
 
         proceedToSecurity();
@@ -304,23 +240,16 @@ generateWalletBtn.addEventListener('click', async () => {
 
 connectWalletBtn.addEventListener('click', async () => {
     console.log("[Wallet] Connect button clicked.");
-    
-    if (!aptosLoaded) {
-        walletStatus.textContent = '❌ Aptos SDK not ready yet';
-        walletStatus.className = 'status error';
-        walletStatus.classList.remove('hidden');
-        return;
-    }
 
     try {
         generateWalletBtn.disabled = true;
         connectWalletBtn.disabled = true;
-        walletStatus.textContent = '🔄 Preparing wallet connection...';
+        walletStatus.textContent = '🔄 Preparing demo wallet connection...';
         walletStatus.className = 'status info';
         walletStatus.classList.remove('hidden');
 
-        // For demo purposes, we'll generate a wallet instead of connecting
-        const wallet = window.aptosSDK.generateWallet();
+        // Use demo wallet generator for connection too
+        const wallet = generateDemoWallet();
         walletData = { address: wallet.address, publicKey: wallet.publicKey, connected: true };
 
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -331,9 +260,9 @@ connectWalletBtn.addEventListener('click', async () => {
             publicKey: walletData.publicKey, 
             timestamp: Date.now() 
         }));
-        console.log(`[Wallet] Wallet connected (Demo) and data sent. Address: ${walletData.address}`);
+        console.log(`[Wallet] Demo wallet connected and data sent. Address: ${walletData.address}`);
 
-        walletStatus.textContent = '✅ Wallet connection ready!';
+        walletStatus.textContent = '✅ Demo wallet connection ready!';
         walletStatus.className = 'status success';
 
         proceedToSecurity();
@@ -403,7 +332,7 @@ tg.ready(() => {
     successSection.classList.add('hidden');
     console.log("Initial state set: Only PIN section is visible.");
 
-    // Disable wallet buttons until Aptos loads
+    // Wallet buttons will be enabled after PIN verification
     generateWalletBtn.disabled = true;
     connectWalletBtn.disabled = true;
 
