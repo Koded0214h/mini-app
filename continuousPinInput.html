@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuous PIN Input Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+        }
+
+        .pin-input-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Styling for the separate digit fields */
+        .pin-digit {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            transition: all 0.2s;
+            /* Important for mobile: forces numeric keyboard */
+            inputmode: numeric; 
+            -moz-appearance: textfield; /* Hide number arrows in Firefox */
+        }
+
+        .pin-digit:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+
+        /* Utility button style for demonstration */
+        .test-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .test-btn:disabled {
+            background-color: #adb5bd;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>PIN Input Test</h1>
+    <p>Type continuously to see the cursor auto-advance.</p>
+    
+    <div class="pin-input-container">
+        <input type="tel" maxlength="1" class="pin-digit" data-index="0" inputmode="numeric" autocomplete="off">
+        <input type="tel" maxlength="1" class="pin-digit" data-index="1" inputmode="numeric" autocomplete="off">
+        <input type="tel" maxlength="1" class="pin-digit" data-index="2" inputmode="numeric" autocomplete="off">
+        <input type="tel" maxlength="1" class="pin-digit" data-index="3" inputmode="numeric" autocomplete="off">
+    </div>
+
+    <button id="testButton" class="test-btn" disabled>Test PIN: (0000)</button>
+
+    <script>
+        const pinDigits = document.querySelectorAll('.pin-digit');
+        const testButton = document.getElementById('testButton');
+
+        // Function to check if all PIN fields are filled and update button state
+        const checkPinCompletion = () => {
+            const allFilled = Array.from(pinDigits).every(digit => digit.value.length === 1);
+            testButton.disabled = !allFilled;
+            
+            if (allFilled) {
+                const pinCode = Array.from(pinDigits).map(d => d.value).join('');
+                testButton.textContent = `Verify PIN: (${pinCode})`;
+            } else {
+                testButton.textContent = 'Test PIN: (0000)';
+            }
+        };
+        
+        // PIN input handling logic
+        pinDigits.forEach((digit, index) => {
+            
+            // 1. Handle continuous typing and input validation
+            digit.addEventListener('input', (e) => {
+                let value = e.target.value;
+
+                // Sanitize and ensure only a single digit is entered
+                value = value.replace(/[^0-9]/g, '').slice(0, 1);
+                e.target.value = value;
+
+                // Auto-advance focus if a digit was successfully entered
+                if (value.length === 1 && index < pinDigits.length - 1) {
+                    pinDigits[index + 1].focus();
+                }
+
+                // Update button state
+                checkPinCompletion();
+            });
+            
+            // 2. Handle Backspace for going backward
+            digit.addEventListener('keydown', (e) => {
+                // If Backspace is pressed and the current field is empty (or has no selection) AND it's not the first field
+                if (e.key === 'Backspace' && e.target.value.length === 0 && index > 0) {
+                    e.preventDefault(); // Stop the default behavior (which might be slow/buggy)
+                    pinDigits[index - 1].focus();
+                    pinDigits[index - 1].value = ''; // Clear the content of the previous field
+                    checkPinCompletion();
+                }
+            });
+            
+            // 3. Handle moving focus when pasting text
+            digit.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData).getData('text');
+                const cleanPaste = paste.replace(/[^0-9]/g, '');
+
+                for (let i = 0; i < cleanPaste.length && index + i < pinDigits.length; i++) {
+                    const currentDigit = pinDigits[index + i];
+                    currentDigit.value = cleanPaste[i];
+                    
+                    // Move focus to the last pasted field or the next one
+                    if (index + i < pinDigits.length - 1) {
+                        pinDigits[index + i + 1].focus();
+                    } else if (index + i === pinDigits.length - 1) {
+                        currentDigit.blur();
+                    }
+                }
+                checkPinCompletion();
+            });
+        });
+
+        // Initial focus on the first field
+        window.addEventListener('load', () => {
+            pinDigits[0].focus();
+        });
+        
+    </script>
+</body>
+</html>

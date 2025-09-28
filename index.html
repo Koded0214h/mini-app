@@ -4,548 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneUp Auth Gateway</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/aptos@1.8.12/dist/aptos.umd.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #157438 0%, #141414 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .container {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 450px;
-            text-align: center;
-        }
-        
-        .logo {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 24px;
-        }
-        
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        
-        .section {
-            margin: 25px 0;
-            padding: 20px;
-            border-radius: 15px;
-            background: #f8f9fa;
-        }
-        
-        .btn {
-            background: linear-gradient(135deg, #157438 0%, #141414 100%);
-            color: white;
-            border: none;
-            padding: 15px 25px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(21, 116, 56, 0.3);
-        }
-        
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .btn-success {
-            background: #28a745;
-        }
-        
-        .status {
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            font-size: 14px;
-            text-align: left;
-        }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        
-        .wallet-info {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            text-align: left;
-            font-family: monospace;
-            font-size: 12px;
-            word-break: break-all;
-        }
-        
-        .hidden {
-            display: none !important;
-        }
-        
-        .step-indicator {
-            display: flex;
-            justify-content: center;
-            margin: 20px 0;
-            gap: 10px;
-        }
-        
-        .step {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #dee2e6;
-            transition: all 0.3s;
-        }
-        
-        .step.active {
-            background: #157438;
-            transform: scale(1.2);
-        }
-        
-        .step.completed {
-            background: #28a745;
-        }
-        
-        /* The main container for the PIN field */
-        .pin-input {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 20px 0;
-            position: relative; 
-            height: 50px;
-        }
-
-        /* The hidden, primary input field */
-        #mainPinInput {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: default;
-            font-size: 0;
-        }
-        
-        /* The visual digit boxes */
-        .pin-digit {
-            width: 50px;
-            height: 50px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: bold;
-            transition: all 0.3s;
-            background: white;
-            pointer-events: none; 
-        }
-
-        /* Highlight the digit corresponding to the caret position */
-        .pin-input.active-focus .pin-digit:not(.filled) {
-            border-color: #157438;
-            box-shadow: 0 0 5px rgba(21, 116, 56, 0.3);
-        }
-
-        /* ONLY highlight the NEXT available box */
-        .pin-input.active-focus .pin-digit:nth-child(1) { /* Default focus for first empty box */
-             border-color: #157438;
-             box-shadow: 0 0 5px rgba(21, 116, 56, 0.3);
-        }
-        .pin-input.active-focus .pin-digit.filled { /* Clear highlight from filled boxes */
-             border-color: #157438; 
-             box-shadow: none;
-        }
-        .pin-input.active-focus .pin-digit.filled + .pin-digit:not(.filled) { /* Highlight the first unfilled box */
-             border-color: #157438;
-             box-shadow: 0 0 5px rgba(21, 116, 56, 0.3);
-        }
-        .pin-input.active-focus .pin-digit:nth-child(4).filled { /* When all are filled, remove highlight */
-            border-color: #157438;
-            box-shadow: none;
-        }
-
-
-        .pin-digit.filled {
-            border-color: #157438;
-            background: #f0fff4;
-        }
-
-        /* Hide the character and show a dot */
-        .pin-digit-char {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background: #333;
-            border-radius: 50%;
-            opacity: 0;
-            transition: opacity 0.1s;
-        }
-
-        .pin-digit.filled .pin-digit-char {
-            opacity: 1;
-        }
-        
-        .lock {
-            color: #157438;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@aptos-labs/aptos/dist/global.min.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <div class="logo"><i class="lock fa-solid fa-lock"></i></div>
-        <h1>OneUp Wallet Setup</h1>
-        <div class="subtitle">Secure your Aptos wallet and start trading</div>
-        
-        <div class="step-indicator">
-            <div class="step active" id="step1"></div>
-            <div class="step" id="step2"></div>
-            <div class="step" id="step3"></div>
+        <h1>OneUp Auth Gateway</h1>
+        <div class="subtitle">Secure access to your trading dashboard</div>
+
+        <div class="steps">
+            <div class="step active" id="step1">1</div>
+            <div class="step-line" id="line1"></div>
+            <div class="step" id="step2">2</div>
+            <div class="step-line" id="line2"></div>
+            <div class="step" id="step3">3</div>
         </div>
-        
-        <div id="pinSection" class="section">
-            <h2>Step 1: Set Security PIN</h2>
-            <div class="status info">
-                Create a 4-digit PIN to secure your wallet access
+
+        <div id="pinSection" class="auth-section">
+            <h2>Step 1: PIN Setup & Verification</h2>
+            <p>Set a 4-digit security PIN</p>
+            
+            <div class="pin-input-container">
+                <input type="tel" maxlength="1" class="pin-digit" data-index="0" inputmode="numeric" autocomplete="off">
+                <input type="tel" maxlength="1" class="pin-digit" data-index="1" inputmode="numeric" autocomplete="off">
+                <input type="tel" maxlength="1" class="pin-digit" data-index="2" inputmode="numeric" autocomplete="off">
+                <input type="tel" maxlength="1" class="pin-digit" data-index="3" inputmode="numeric" autocomplete="off">
             </div>
-            <div class="pin-input" id="pinInputContainer">
-                <input type="number" 
-                       id="mainPinInput" 
-                       maxlength="4" 
-                       inputmode="numeric" 
-                       pattern="[0-9]*" 
-                       autocomplete="off" 
-                       oninput="if(this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);"
-                >
-                <div class="pin-digit" data-index="0"><span class="pin-digit-char"></span></div>
-                <div class="pin-digit" data-index="1"><span class="pin-digit-char"></span></div>
-                <div class="pin-digit" data-index="2"><span class="pin-digit-char"></span></div>
-                <div class="pin-digit" data-index="3"><span class="pin-digit-char"></span></div>
-            </div>
-            <button id="setPinBtn" class="btn" disabled>Set PIN & Continue</button>
+
+            <button id="verifyBtn" class="btn" disabled>Verify PIN: (0000)</button>
         </div>
-        
-        <div id="walletSection" class="section hidden">
-            <h2>Step 2: Create Aptos Wallet</h2>
-            <div class="status info">
-                Generating your secure Aptos wallet...
-            </div>
-            <button id="createWalletBtn" class="btn">
-                <span>🔄 Create Aptos Wallet</span>
-            </button>
+
+        <div id="walletSection" class="wallet-section hidden">
+            <h2>Step 2: Wallet Creation & Connection</h2>
+            <p>Generate or connect your Aptos wallet</p>
+            <button id="generateWalletBtn" class="btn">Generate New Aptos Wallet</button>
+            <button id="connectWalletBtn" class="btn secondary">Connect Existing Wallet</button>
             <div id="walletStatus" class="status hidden"></div>
         </div>
-        
-        <div id="successSection" class="section hidden">
-            <h2>✅ Setup Complete!</h2>
-            <div class="status success">
-                Your Aptos wallet has been created successfully!
-            </div>
-            <div id="walletInfo" class="wallet-info hidden">
-                <strong>Wallet Address:</strong><br>
-                <span id="walletAddress"></span><br><br>
-                <strong>Public Key:</strong><br>
-                <span id="publicKey"></span>
-            </div>
-            <div class="status info">
-                Your wallet is now ready for trading. Return to the bot to start!
-            </div>
-            <button id="finishBtn" class="btn btn-success">🎉 Finish Setup</button>
+
+        <div id="biometricSection" class="biometric-section hidden">
+            <h2>Step 3: Security Confirmation</h2>
+            <p>Final security setup</p>
+            <div class="biometric-icon"><i class="fa-solid fa-shield-check"></i></div>
+            <div id="walletInfo" class="wallet-address hidden"></div>
+            <button id="securityBtn" class="btn">Complete Security Setup</button>
+            <button id="skipSecurityBtn" class="btn secondary">Skip Security</button>
+            <div id="securityStatus" class="status hidden"></div>
         </div>
-        
-        <div id="errorSection" class="section hidden">
-            <div class="status error">
-                <strong>Error</strong><br>
-                <span id="errorMessage"></span>
+
+        <div id="successSection" class="success-section hidden">
+            <div class="status success">✅ Authentication Successful!</div>
+            <div class="status info">
+                <strong>Your wallet is ready!</strong><br>
+                You can now start trading securely.
             </div>
-            <button id="retryBtn" class="btn">🔄 Retry</button>
+            <button id="closeBtn" class="btn">Return to Bot</button>
         </div>
     </div>
 
-    <script>
-        // Telegram WebApp initialization
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
-        
-        // Aptos SDK
-        const aptos = new Aptos();
-        
-        // DOM elements
-        const mainPinInput = document.getElementById('mainPinInput');
-        const pinDigitElements = document.querySelectorAll('.pin-digit');
-        const pinInputContainer = document.getElementById('pinInputContainer');
-        const setPinBtn = document.getElementById('setPinBtn');
-        const createWalletBtn = document.getElementById('createWalletBtn');
-        const finishBtn = document.getElementById('finishBtn');
-        const retryBtn = document.getElementById('retryBtn');
-        
-        const pinSection = document.getElementById('pinSection');
-        const walletSection = document.getElementById('walletSection');
-        const successSection = document.getElementById('successSection');
-        const errorSection = document.getElementById('errorSection');
-        
-        const walletStatus = document.getElementById('walletStatus');
-        const walletInfo = document.getElementById('walletInfo');
-        const walletAddressEl = document.getElementById('walletAddress');
-        const publicKeyEl = document.getElementById('publicKey');
-        const errorMessageEl = document.getElementById('errorMessage');
-        
-        const steps = document.querySelectorAll('.step');
-        
-        let userPin = '';
-        let walletData = null;
-        
-        /**
-         * Robust PIN Input Logic: Uses a single, hidden input to capture continuous typing.
-         */
-        mainPinInput.addEventListener('input', (e) => {
-            let pinValue = e.target.value;
-            
-            // Sanitize: ensure only numbers are kept and limit to 4 characters (for mobile/paste)
-            pinValue = pinValue.replace(/\D/g, '').slice(0, 4);
-            e.target.value = pinValue;
-            userPin = pinValue;
-
-            const pinLength = pinValue.length;
-
-            // Update visual state (filled dots)
-            pinDigitElements.forEach((digitEl, index) => {
-                if (index < pinLength) {
-                    digitEl.classList.add('filled');
-                } else {
-                    digitEl.classList.remove('filled');
-                }
-            });
-
-            // Enable/disable button
-            setPinBtn.disabled = pinLength !== 4;
-
-            // Automatically proceed when PIN is complete
-            if (pinLength === 4) {
-                pinInputContainer.classList.remove('active-focus');
-                e.target.blur(); 
-                setPinBtn.click();
-            }
-        });
-        
-        // Focus Handlers for visual feedback
-        mainPinInput.addEventListener('focus', () => {
-            pinInputContainer.classList.add('active-focus');
-        });
-
-        mainPinInput.addEventListener('blur', () => {
-            pinInputContainer.classList.remove('active-focus');
-        });
-
-        // Click the container to focus the hidden input (Better mobile UX)
-        pinInputContainer.addEventListener('click', () => {
-            mainPinInput.focus();
-        });
-
-
-        
-        // Step 1: Set PIN
-        setPinBtn.addEventListener('click', () => {
-            if (userPin.length === 4) {
-                // Send PIN (for bot communication purposes)
-                tg.sendData(JSON.stringify({
-                    type: 'pin_set',
-                    pin: userPin,
-                    timestamp: Date.now()
-                }));
-                
-                // Move to next step
-                showSection(walletSection);
-                updateSteps(2);
-            }
-        });
-        
-        // Step 2: Create Wallet
-        createWalletBtn.addEventListener('click', async () => {
-            try {
-                if(createWalletBtn.disabled) return;
-
-                createWalletBtn.innerHTML = '🔄 Creating Wallet...';
-                createWalletBtn.disabled = true;
-                walletStatus.textContent = 'Generating secure Aptos wallet...';
-                walletStatus.className = 'status info';
-                walletStatus.classList.remove('hidden');
-                
-                // Generate Aptos wallet
-                const wallet = aptos.generateWallet();
-                walletData = {
-                    address: wallet.address,
-                    publicKey: wallet.publicKey,
-                    privateKey: wallet.privateKey, 
-                    mnemonic: wallet.mnemonic
-                };
-                
-                // Simulate some processing time
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                // Update UI with wallet info
-                walletAddressEl.textContent = walletData.address;
-                publicKeyEl.textContent = walletData.publicKey;
-                walletInfo.classList.remove('hidden');
-                
-                walletStatus.textContent = '✅ Wallet created successfully!';
-                walletStatus.className = 'status success';
-                
-                createWalletBtn.innerHTML = '✅ Wallet Created';
-                createWalletBtn.classList.add('btn-success');
-                
-                finishBtn.disabled = false;
-                
-                setTimeout(() => {
-                    showSection(successSection);
-                    updateSteps(3);
-                }, 1000);
-                
-            } catch (error) {
-                console.error('Wallet creation error:', error);
-                showError('Failed to create wallet: ' + error.message);
-                createWalletBtn.innerHTML = '🔄 Create Aptos Wallet';
-                createWalletBtn.disabled = false;
-            }
-        });
-        
-        // Step 3: Finish Setup
-        finishBtn.addEventListener('click', () => {
-            if (walletData) {
-                // Send essential, non-secret data to bot
-                tg.sendData(JSON.stringify({
-                    type: 'wallet_created',
-                    walletAddress: walletData.address,
-                    publicKey: walletData.publicKey,
-                    timestamp: Date.now()
-                }));
-                
-                setTimeout(() => {
-                    tg.close();
-                }, 500);
-            }
-        });
-        
-        // Retry button
-        retryBtn.addEventListener('click', () => {
-            showSection(pinSection);
-            updateSteps(1);
-            resetForm();
-            setTimeout(() => mainPinInput.focus(), 100); 
-        });
-        
-        // Helper functions
-        function showSection(section) {
-            [pinSection, walletSection, successSection, errorSection].forEach(s => {
-                s.classList.add('hidden');
-            });
-            section.classList.remove('hidden');
-        }
-        
-        function updateSteps(activeStep) {
-            steps.forEach((step, index) => {
-                step.classList.remove('active', 'completed');
-                if (index + 1 < activeStep) {
-                    step.classList.add('completed');
-                } else if (index + 1 === activeStep) {
-                    step.classList.add('active');
-                }
-            });
-        }
-        
-        function showError(message) {
-            errorMessageEl.textContent = message;
-            showSection(errorSection);
-        }
-        
-        function resetForm() {
-            mainPinInput.value = '';
-            pinDigitElements.forEach(d => d.classList.remove('filled'));
-
-            userPin = '';
-            setPinBtn.disabled = true;
-            walletData = null;
-
-            createWalletBtn.innerHTML = '🔄 Create Aptos Wallet';
-            createWalletBtn.disabled = false;
-            createWalletBtn.classList.remove('btn-success');
-            walletInfo.classList.add('hidden');
-            walletStatus.classList.add('hidden');
-
-            finishBtn.disabled = true;
-        }
-        
-        // Initialize
-        updateSteps(1);
-
-        // FIX: Use tg.ready() to ensure focus works on Telegram Mini Apps
-        tg.ready(() => {
-            // Give the UI a moment to render after the app is ready
-            setTimeout(() => {
-                mainPinInput.focus();
-            }, 100); 
-        });
-        
-        // Handle theme changes
-        tg.onEvent('themeChanged', () => {
-            document.body.style.background = tg.themeParams.bg_color || 'linear-gradient(135deg, #157438 0%, #141414 100%)';
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
